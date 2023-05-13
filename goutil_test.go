@@ -1,7 +1,10 @@
 package gu
 
 import (
+	"fmt"
+	"os"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 )
@@ -30,4 +33,46 @@ func TestInArray(t *testing.T) {
 	assert.True(t, Ft.InArray(6.78, floats))
 	assert.True(t, At.InArray(3.1415926, interfaces))
 	assert.False(t, At.InArray(2.71828, interfaces))
+}
+
+// response type
+type Rsp struct {
+	Code int `json:"code"`
+}
+
+// response type with ts(timestamp)
+type Rspt struct {
+	Code int   `json:"code"`
+	Ts   int64 `json:"ts"`
+}
+
+func TestStructTo(t *testing.T) {
+	jsonRspt := Rspt{
+		Code: 1,
+		Ts:   123,
+	}
+
+	var jsonRsp Rsp
+	At.StructTo(jsonRspt, &jsonRsp)
+	assert.Equal(t, jsonRsp, Rsp{
+		Code: 1,
+	})
+
+	var jRspt Rspt
+	At.StructTo(jsonRsp, &jRspt)
+	assert.Equal(t, jRspt, Rspt{
+		Code: 1,
+		Ts:   0,
+	})
+}
+
+func TestUtils(t *testing.T) {
+	ti := time.Now().UnixMilli()
+	fmt.Printf("Current time : %d\n", ti)
+
+	os.Setenv("TEST", "YES")
+	assert.Equal(t, "YES", Env("TEST"))
+
+	os.Setenv("TEST", "YES")
+	assert.Equal(t, -1, EnvInt("TEST", -1))
 }

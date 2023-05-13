@@ -10,4 +10,7 @@ type (
 	BoolType  struct{}
 	FloatType struct{}
 	AnyType   struct{}
+	// ListType  struct{}
+	// RingType  struct{}
+	// HeapType  struct{}
 )

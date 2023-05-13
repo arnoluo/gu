@@ -2,6 +2,8 @@ package types
 
 import (
 	"errors"
+	"fmt"
+	"math"
 	"reflect"
 	"strconv"
 )
@@ -17,75 +19,119 @@ func (at AnyType) If(isTrue bool, trueValue, falseValue any) any {
 
 // Int64 将 any 类型的值转换为 int64 类型的值。
 // 支持以下类型：uint, uint8, uint16, uint32, uint64, int, int8, int16, int32, int64, float32, float64, string（可以是 10 进制数字字符串）。
-func (at AnyType) Int64(fromVal any, toVal *int64) error {
+// 注：float 类型转换时将损失精度，所以请传入 1111.0 这样不会损失精度的值
+func (at AnyType) Int64(fromVal any, toValue *int64) (err error) {
 	switch fromVal := fromVal.(type) {
-	case uint, uint8, uint16, uint32, uint64, int, int8, int16, int32, int64, float32, float64:
-		*toVal = fromVal.(int64)
-		return nil
+	case int, int8, int16, int32, int64:
+		*toValue = reflect.ValueOf(fromVal).Int()
+	case uint8, uint16, uint32:
+		*toValue = int64(reflect.ValueOf(fromVal).Uint())
+	case uint, uintptr:
+		v := reflect.ValueOf(fromVal).Uint()
+		if v > math.MaxInt64 {
+			err = errors.New("gu.At.Int64() Error: out of range int64")
+		}
+		*toValue = int64(v)
+	case uint64:
+		if fromVal > math.MaxInt64 {
+			err = errors.New("gu.At.Int64() Error: out of range int64")
+		}
+		*toValue = int64(fromVal)
+	case float32, float64:
+		*toValue = int64(reflect.ValueOf(fromVal).Float())
 	case string:
-		var err error
-		*toVal, err = strconv.ParseInt(fromVal, 10, 64)
-		return err
+		*toValue, err = strconv.ParseInt(fromVal, 10, 64)
 	default:
-		return errors.New("convert int64 error")
+		err = errors.New("gu.At.Int64() Error: unsupported type")
 	}
+
+	return
 }
 
 // Int 将 any 类型的值转换为 int 类型的值。
 // 支持以下类型：uint, uint8, uint16, uint32, uint64, int, int8, int16, int32, int64, float32, float64, string（可以是 10 进制数字字符串）。
 func (at AnyType) Int(fromVal any, toVal *int) error {
-	switch fromVal := fromVal.(type) {
-	case uint, uint8, uint16, uint32, uint64, int, int8, int16, int32, int64, float32, float64:
-		*toVal = fromVal.(int)
-		return nil
-	case string:
-		var err error
-		*toVal, err = strconv.Atoi(fromVal)
-		return err
-	default:
-		return errors.New("convert int error")
+	var to int64
+	if err := at.Int64(fromVal, &to); err != nil {
+		return fmt.Errorf("gu.At.Int() Error: %s", err.Error())
 	}
+
+	*toVal = int(to)
+	if to >= math.MinInt && to <= math.MaxInt {
+		return nil
+	}
+
+	return fmt.Errorf("gu.At.Int() Error: out of range int")
 }
 
 // Uint64 将 any 类型的值转换为 uint64 类型的值。
 // 支持以下类型：uint, uint8, uint16, uint32, uint64, int, int8, int16, int32, int64, float32, float64, string（可以是 10 进制数字字符串）。
-func (at AnyType) Uint64(fromVal any, toVal *uint64) error {
+func (at AnyType) Uint64(fromVal any, toValue *uint64) (err error) {
 	switch fromVal := fromVal.(type) {
-	case uint, uint8, uint16, uint32, uint64, int, int8, int16, int32, int64, float32, float64:
-		*toVal = fromVal.(uint64)
-		return nil
+	case int, int8, int16, int32, int64:
+		v := reflect.ValueOf(fromVal).Int()
+		*toValue = uint64(v)
+		if v < 0 {
+			err = errors.New("gu.At.Uint64() Error: out of range uint64")
+		}
+	case uint, uintptr, uint8, uint16, uint32, uint64:
+		*toValue = reflect.ValueOf(fromVal).Uint()
+	case float32, float64:
+		v := reflect.ValueOf(fromVal).Float()
+		*toValue = uint64(v)
+		if v < 0 {
+			err = errors.New("gu.At.Uint64() Error: out of range uint64")
+		}
 	case string:
-		var err error
-		*toVal, err = strconv.ParseUint(fromVal, 10, 64)
-		return err
+		*toValue, err = strconv.ParseUint(fromVal, 10, 64)
 	default:
-		return errors.New("convert uint64 error")
+		err = errors.New("gu.At.Uint64() Error: unsupported type")
 	}
+
+	return
 }
 
 // Uint 将 any 类型的值转换为 uint 类型的值。
 // 支持以下类型：uint, uint8, uint16, uint32, uint64, int, int8, int16, int32, int64, float32, float64, string（可以是 10 进制数字字符串）。
 func (at AnyType) Uint(fromVal any, toVal *uint) error {
-	var v uint64
-	e := at.Uint64(fromVal, &v)
-	*toVal = uint(v)
-	return e
+	var to uint64
+	if err := at.Uint64(fromVal, &to); err != nil {
+		return fmt.Errorf("gu.At.Uint() Error: %s", err.Error())
+	}
+
+	*toVal = uint(to)
+	if to <= math.MaxUint {
+		return nil
+	}
+
+	return fmt.Errorf("gu.At.Uint() Error: out of range uint")
 }
 
 // Float 将 any 类型的值转换为 float64 类型的值。
 // 支持以下类型：uint, uint8, uint16, uint32, uint64, int, int8, int16, int32, int64, float32, float64, string（可以是浮点数字符串）。
-func (at AnyType) Float(fromVal any, toVal *float64) error {
+func (at AnyType) Float(fromVal any, toVal *float64) (err error) {
 	switch fromVal := fromVal.(type) {
-	case uint, uint8, uint16, uint32, uint64, int, int8, int16, int32, int64, float32, float64:
-		*toVal = fromVal.(float64)
-		return nil
+	case uint8, uint16, uint32:
+		*toVal = float64(reflect.ValueOf(fromVal).Uint())
+	case uint, uintptr, uint64:
+		v := reflect.ValueOf(fromVal).Uint()
+		if v > math.Float64bits(math.MaxFloat64) {
+			err = errors.New("gu.At.Float() Error: out of range float64")
+		}
+		*toVal = float64(v)
+	case int, int8, int16, int32, int64:
+		*toVal = float64(reflect.ValueOf(fromVal).Int())
+	case float32:
+		*toVal = reflect.ValueOf(fromVal).Float()
+	case float64:
+		*toVal = fromVal
 	case string:
-		var err error
 		*toVal, err = strconv.ParseFloat(fromVal, 64)
-		return err
 	default:
-		return errors.New("convert float64 error")
+		err = errors.New("gu.At.Float() Error: unsupported type")
 	}
+
+	return
 }
 
 // 结构转换, 使用src内所有kv关系，对dst进行赋值

@@ -216,81 +216,114 @@ func (it IntType) Avg(values ...int64) float64 {
 }
 
 // 整数切片查找，threshold 参数生效
-func (it IntType) InArray(v int64, arr []int64) bool {
-	return it.Find(v, arr) >= 0
+func (it IntType) InArray(value int64, arr []int64) bool {
+	return it.Find(value, arr) >= 0
 }
 
-// 查找数组，threshold 参数生效，按照数组总量决定查找策略(>= 8 二分查找；否则遍历查找)
+// 已排序数组查找，threshold 参数生效
+func (it IntType) InSortedArray(value int64, arr []int64, isAsc bool) bool {
+	return it.FindSorted(value, arr, isAsc) >= 0
+}
+
+// 遍历查找数组
 //
-// 二分查找将会对数组做值排序，所以如果对同一数组做多次 Find，建议先 ArrayAsc 后使用 FindSorted
+// 如果数组长度较长或对同一数组做多次 LoopFind，建议先 ArrayAsc 后使用 BinFind
 //
 // 成功时返回查找到的数组下标，失败返回 -1
-func (it IntType) Find(v int64, arr []int64) int {
-	if len(arr) < threshold {
-		for i, a := range arr {
-			if a == v {
-				return i
-			}
-		}
-		return -1
-	} else {
-		return it.SortAndBinSearch(v, arr)
-	}
-}
-
-// 查找已排序数组，threshold 参数生效，按照数组总量决定查找策略(>= 8 二分查找；否则遍历查找)
-//
-// 此函数适用于数组值已排序或将对同一数组进行多次查找，传入已排序的数组以提高效率。
-// 注：若传入未排序的数组，结果可能并不符合预期。
-//
-// 成功时返回查找到的数组下标，失败返回 -1
-func (it IntType) FindSorted(v int64, arr []int64) int {
-	if len(arr) < threshold {
-		for i, a := range arr {
-			if a == v {
-				return i
-			}
-		}
-		return -1
-	} else {
-		return it.BinSearch(v, arr)
-	}
-}
-
-// 二分查找法，成功返回查找到的数组下标，失败返回 -1
-func (it IntType) BinSearch(v int64, arr []int64) int {
-	sort.Slice(arr, func(i, j int) bool { return arr[i] < arr[j] })
-	l, r := 0, len(arr)-1
-	for l <= r {
-		mid := (l + r) / 2
-		if arr[mid] < v {
-			l = mid + 1
-		} else if arr[mid] > v {
-			r = mid - 1
-		} else {
-			return mid
+func (it IntType) LoopFind(value int64, arr []int64) int {
+	for i, a := range arr {
+		if a == value {
+			return i
 		}
 	}
 	return -1
 }
 
+// 二分查找数组
+//
+// 此函数适用于数组值已排序或将对同一数组进行多次查找，传入已排序的数组以提高效率。
+// 注：若传入未排序的数组，结果可能并不符合预期。
+//
+// 成功时返回查找到的数组下标，失败返回 -1
+func (it IntType) BinFind(value int64, arr []int64, isAsc bool) int {
+	return it.BinSearch(value, arr, isAsc)
+}
+
+// 查找数组 如果数组长度超过规定值，使用二分查找，否则使用遍历查找
+//
+// 二分查找时，将会对数组进行升序排序，查找成功返回的也会是升序后的下标
+//
+// 成功时返回查找到的数组下标，失败返回 -1
+func (it IntType) Find(value int64, arr []int64) int {
+	if len(arr) > threshold {
+		return it.SortAndBinSearch(value, arr)
+	} else {
+		// 否则使用遍历查找
+		return it.LoopFind(value, arr)
+	}
+}
+
+// 查找已排序数组 如果数组长度超过规定值，使用二分查找，否则使用遍历查找
+//
+// 成功时返回查找到的数组下标，失败返回 -1
+func (it IntType) FindSorted(value int64, arr []int64, isAsc bool) int {
+	if len(arr) > threshold {
+		return it.BinFind(value, arr, isAsc)
+	} else {
+		// 否则使用遍历查找
+		return it.LoopFind(value, arr)
+	}
+}
+
+// 二分查找(此函数不会进行排序，请输入已排序的数组，否则会产生非预期结果)
+// 成功返回查找到的数组下标，失败返回 -1
+func (it IntType) BinSearch(value int64, arr []int64, isAsc bool) int {
+	l, r := 0, len(arr)-1
+	if isAsc {
+		for l <= r {
+			mid := (l + r) / 2
+			if arr[mid] < value {
+				l = mid + 1
+			} else if arr[mid] > value {
+				r = mid - 1
+			} else {
+				return mid
+			}
+		}
+	} else {
+		for l <= r {
+			mid := (l + r) / 2
+			if arr[mid] > value {
+				l = mid + 1
+			} else if arr[mid] < value {
+				r = mid - 1
+			} else {
+				return mid
+			}
+		}
+	}
+
+	return -1
+}
+
 // 数组排序 asc
-func (it IntType) ArrayAsc(arr []int64) []int64 {
+func (it IntType) ArrayAsc(arr []int64) {
 	sort.Slice(arr, func(i, j int) bool {
 		return arr[i] < arr[j]
 	})
-	return arr
 }
 
 // 数组排序 desc
-func (it IntType) ArrayDesc(arr []int64) []int64 {
+func (it IntType) ArrayDesc(arr []int64) {
 	sort.Slice(arr, func(i, j int) bool {
 		return arr[i] > arr[j]
 	})
-	return arr
 }
 
 // 对数组排序并进行二分查找法，成功返回查找到的数组下标，失败返回 -1
-func (it IntType) SortAndBinSearch(v int64, arr []int64) int {
-	return it.BinSearch(v, it.ArrayAsc(arr))
+func (it IntType) SortAndBinSearch(value int64, arr []int64) int {
+	tmp := make([]int64, len(arr))
+	copy(tmp, arr)
+	it.ArrayAsc(tmp)
+	return it.BinSearch(value, tmp, true)
 }

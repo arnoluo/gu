@@ -24,6 +24,15 @@ var (
 
 	// AnyType
 	At types.AnyType
+
+	// // ListType
+	// Lt types.ListType
+
+	// // RingType
+	// Rt types.RingType
+
+	// // HeapType
+	// Ht types.HeapType
 )
 
 // 获取环境变量
